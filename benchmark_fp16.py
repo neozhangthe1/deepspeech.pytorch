@@ -93,8 +93,8 @@ run_time_half, fwd_time_half, bwd_time_half  = run_benchmark(input_half, cuda_ha
 
 print('\n')
 print("Average times for DeepSpeech training in seconds: ")
-print("F32 precision: Average training loop %.2fs Forward: %.2fs Backward: %.2fs" % (run_time_half, fwd_time, bwd_time))
-print("F16 precision: Average training loop %.2fs Forward: %.2fs Backward: %.2fs" % (run_time, fwd_time_half, bwd_time_half))
+print("F32 precision: Average training loop %.2fs Forward: %.2fs Backward: %.2fs" % (run_time, fwd_time, bwd_time))
+print("F16 precision: Average training loop %.2fs Forward: %.2fs Backward: %.2fs" % (run_time_half, fwd_time_half, bwd_time_half))
 
 
 
