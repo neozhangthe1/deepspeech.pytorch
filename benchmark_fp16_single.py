@@ -23,6 +23,7 @@ model = torch.nn.Sequential(
     torch.nn.LSTM(hidden_size, hidden_size)
 )
 model = model.cuda()
+model.eval()
 
 
 def run_benchmark(input_data):
