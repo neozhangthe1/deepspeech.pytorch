@@ -29,8 +29,9 @@ criterion = CTCLoss()
 
 
 def iteration(input_data, cuda_half=False):
-    target = torch.IntTensor(args.batch_size * ((args.seconds * 100) / 2)).fill_(1)  # targets, align half of the audio
-    target_size = torch.IntTensor(args.batch_size).fill_((args.seconds * 100) / 2)
+    target = torch.IntTensor(int(args.batch_size * ((args.seconds * 100) / 2))).fill_(
+        1)  # targets, align half of the audio
+    target_size = torch.IntTensor(args.batch_size).fill_(int((args.seconds * 100) / 2))
     input_percentages = torch.IntTensor(args.batch_size).fill_(1)
 
     inputs = Variable(input_data)
