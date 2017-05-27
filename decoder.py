@@ -19,6 +19,7 @@ import Levenshtein as Lev
 import torch
 from six.moves import xrange
 
+
 class Decoder(object):
     """
     Basic decoder class from which all other decoders inherit. Implements several
@@ -30,7 +31,7 @@ class Decoder(object):
         space_index (int, optional): index for the space ' ' character. Defaults to 28.
     """
 
-    def __init__(self, labels, blank_index=0, space_index=1):
+    def __init__(self, labels, blank_index=0, space_index=28):
         # e.g. labels = "_'ABCDEFGHIJKLMNOPQRSTUVWXYZ#"
         self.labels = labels
         self.int_to_char = dict([(i, c) for (i, c) in enumerate(labels)])
@@ -42,7 +43,7 @@ class Decoder(object):
         strings = []
         for x in xrange(len(sequences)):
             string = self.convert_to_string(sequences[x])
-            string = string[0:int(sizes.data[x])] if sizes else string
+            string = string[0:int(sizes.data[x])] if sizes is not None else string
             strings.append(string)
         return strings
 

@@ -51,10 +51,7 @@ def iteration(input_data, cuda_half=False):
     loss = criterion(out, targets, sizes, target_sizes)
     loss = loss / inputs.size(0)  # average the loss by minibatch
     if cuda_half:
-        out = out.cuda().half()
         loss = loss.cuda().half()
-        out.data = out.data.cuda().half()
-        loss.data = loss.data.cuda().half()
     bwd_time = time.time()
     # compute gradient
     optimizer.zero_grad()

@@ -7,6 +7,7 @@ import time
 import torch
 from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
+
 from data.data_loader import AudioDataLoader, SpectrogramDataset
 from decoder import ArgMaxDecoder
 from model import DeepSpeech, supported_rnns
@@ -27,6 +28,7 @@ parser.add_argument('--hidden_size', default=400, type=int, help='Hidden size of
 parser.add_argument('--hidden_layers', default=4, type=int, help='Number of RNN layers')
 parser.add_argument('--epochs', default=70, type=int, help='Number of training epochs')
 parser.add_argument('--cuda', dest='cuda', action='store_true', help='Use cuda to train model')
+parser.add_argument('--half_precision', dest='half_precision', action='store_true', help='If CUDA enabled, use FP16')
 parser.add_argument('--lr', '--learning-rate', default=3e-4, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--max_norm', default=400, type=int, help='Norm cutoff to prevent explosion of gradients')
@@ -40,7 +42,7 @@ parser.add_argument('--final_model_path', default='models/deepspeech_final.pth.t
                     help='Location to save final model')
 parser.add_argument('--continue_from', default='', help='Continue from checkpoint model')
 parser.add_argument('--rnn_type', default='lstm', help='Type of the RNN. rnn|gru|lstm are supported')
-parser.set_defaults(cuda=False, silent=False, checkpoint=False, visdom=False)
+args = parser.parse_args()
 
 
 class AverageMeter(object):
@@ -81,8 +83,21 @@ def checkpoint(model, optimizer, args, nout, epoch=None, iteration=None, loss_re
     return package
 
 
+def sync_gradients(single_precision_model, half_precision_model):
+    for single_precision_param, half_precision_param in zip(single_precision_model.parameters(),
+                                                            half_precision_model.parameters()):
+        if half_precision_param.grad is not None:
+            data = half_precision_param.grad.data.cuda().float()
+            single_precision_param.grad.data.copy_(data)
+
+
+def sync_parameters(single_precision_model, half_precision_model):
+    for single_precision_param, half_precision_param in zip(single_precision_model.parameters(),
+                                                            half_precision_model.parameters()):
+        half_precision_param.data.copy_(single_precision_param.data)
+
+
 def main():
-    args = parser.parse_args()
     save_folder = args.save_folder
 
     loss_results, cer_results, wer_results = None, None, None
@@ -132,11 +147,20 @@ def main():
                        rnn_type=supported_rnns[rnn_type],
                        sample_rate=args.sample_rate, window_size=args.window_size)
     parameters = model.parameters()
-    optimizer = torch.optim.SGD(parameters, lr=args.lr,
-                                momentum=args.momentum, nesterov=True)
     decoder = ArgMaxDecoder(labels)
     if args.cuda:
         model = torch.nn.DataParallel(model).cuda()
+        if args.half_precision:
+            single_precision_model = torch.nn.DataParallel(model).cuda()
+            model = model.half()
+            sync_parameters(single_precision_model, model)
+            single_parameters = single_precision_model.parameters()
+            single_optimizer = torch.optim.SGD(single_parameters, lr=args.lr,
+                                               momentum=args.momentum, nesterov=True)
+
+    optimizer = torch.optim.SGD(parameters, lr=args.lr,
+                                momentum=args.momentum, nesterov=True)
+
     if args.continue_from:
         print("Loading checkpoint model %s" % args.continue_from)
         package = torch.load(args.continue_from)
@@ -184,9 +208,13 @@ def main():
 
             if args.cuda:
                 inputs = inputs.cuda()
+                if args.half_precision:
+                    inputs = inputs.half()
 
             out = model(inputs)
             out = out.transpose(0, 1)  # TxNxH
+            if args.cuda and args.half_precision:
+                out = out.cuda().float()
 
             seq_length = out.size(0)
             sizes = Variable(input_percentages.mul_(int(seq_length)).int())
@@ -204,14 +232,22 @@ def main():
 
             avg_loss += loss_value
             losses.update(loss_value, inputs.size(0))
+            if args.cuda and args.half_precision:
+                loss = loss.cuda().half()
 
             # compute gradient
             optimizer.zero_grad()
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm(model.parameters(), args.max_norm)
+            torch.nn.utils.clip_grad_norm(parameters, args.max_norm)
+
             # SGD step
-            optimizer.step()
+            if args.cuda and args.half_precision:
+                sync_gradients(single_precision_model, model)
+                single_optimizer.step()
+                sync_parameters(single_precision_model, model)
+            else:
+                optimizer.step()
 
             if args.cuda:
                 torch.cuda.synchronize()
@@ -256,6 +292,8 @@ def main():
 
             if args.cuda:
                 inputs = inputs.cuda()
+                if args.half_precision:
+                    inputs = inputs.half()
 
             out = model(inputs)
             out = out.transpose(0, 1)  # TxNxH
