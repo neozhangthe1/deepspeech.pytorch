@@ -75,8 +75,13 @@ if __name__ == '__main__':
         target_strings = decoder.process_strings(decoder.convert_to_strings(split_targets))
         wer, cer = 0, 0
         for x in range(len(target_strings)):
-            wer += decoder.wer(decoded_output[x], target_strings[x]) / float(len(target_strings[x].split()))
-            cer += decoder.cer(decoded_output[x], target_strings[x]) / float(len(target_strings[x]))
+            print(decoded_output[x])
+            print(target_strings[x])
+            w1 = decoder.wer(decoded_output[x], target_strings[x]) / float(len(target_strings[x].split()))
+            c1 = decoder.cer(decoded_output[x], target_strings[x]) / float(len(target_strings[x]))
+            wer += w1
+            cer += c1
+            print(w1, c1)
         total_cer += cer
         total_wer += wer
 
