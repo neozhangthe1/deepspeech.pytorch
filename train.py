@@ -8,10 +8,10 @@ import torch
 from torch.autograd import Variable
 from warpctc_pytorch import CTCLoss
 
-from data.bucketing_sampler import BucketingSampler, SpectrogramDatasetWithLength
-from data.data_loader import AudioDataLoader, SpectrogramDataset
-from decoder import GreedyDecoder
-from model import DeepSpeech, supported_rnns
+from .data.bucketing_sampler import BucketingSampler, SpectrogramDatasetWithLength
+from .data.data_loader import AudioDataLoader, SpectrogramDataset
+from .decoder import GreedyDecoder
+from .model import DeepSpeech, supported_rnns
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
 parser.add_argument('--train_manifest', metavar='DIR',
