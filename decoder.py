@@ -154,6 +154,14 @@ class BeamCTCDecoder(Decoder):
         strings = self.convert_to_strings(out[0], sizes=seq_len[0])
         return self.process_strings(strings)
 
+    def decode_multiple_paths(self, probs, sizes=None):
+        sizes = sizes.cpu() if sizes is not None else None
+        out, conf, seq_len = self._decoder.decode(probs.cpu(), sizes)
+
+        # TODO: support returning multiple paths
+        strings_list = [self.convert_to_strings(out[i], sizes=seq_len[i]) for i in range(self._top_n)]
+        return [self.process_strings(s) for s in strings_list]
+
 
 class GreedyDecoder(Decoder):
     def decode(self, probs, sizes=None):
